@@ -4,7 +4,7 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 
 type LoginState = {
-  success: boolean;
+  success: true;
   statusCode: number;
   message: string;
   data: {
@@ -14,7 +14,7 @@ type LoginState = {
 };
 
 export const loginAction = async (
-  previousState: LoginState,
+  prevState: LoginState,
   formData: FormData,
 ) => {
   const email = formData.get("email");
@@ -33,28 +33,26 @@ export const loginAction = async (
     body: JSON.stringify(payload),
   });
 
-  const data = await res.json();
-  if (data.success) {
+  const result = await res.json();
+
+  if (result.success) {
     const cookieStore = await cookies();
 
-    cookieStore.set("accessToken", data.data.accessToken, {
+    cookieStore.set("accessToken", result.data.accessToken, {
       httpOnly: true,
       maxAge: 60 * 60 * 24,
       sameSite: "lax",
+      path: "/"
     });
-    cookieStore.set("refreshToken", data.data.accessToken, {
+    cookieStore.set("refreshToken", result.data.refreshToken, {
       httpOnly: true,
       maxAge: 60 * 60 * 24 * 7,
       sameSite: "lax",
+      path:"/"
     });
 
-    // Server-side navigation
-    redirect("/dashboard") // by default -> type: "push"
-    // redirect("/dashboard", "replace") // replace the path
-
-
+    redirect("/dashboard");
   }
-  return data;
-};
 
-export default loginAction;
+  return result;
+};

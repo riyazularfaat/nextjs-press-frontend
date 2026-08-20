@@ -3,7 +3,7 @@
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
-import loginAction from "../_actions/authAtcions"
+import {loginAction} from "../_actions/authActions"
 import { useActionState, useEffect } from "react"
 import { toast } from "sonner"
 
@@ -21,8 +21,8 @@ const LoginForm = () => {
   return (
     <form action={action} className="w-full max-w-sm space-y-8">
         <Card className="w-100 space-y-4 p-8">
-            <Input name="email" type="email" placeholder="Enter your email" />
-            <Input name="password" type="password" placeholder="Enter your password" />
+            <Input name="email" type="email" placeholder="Enter your email" required />
+            <Input name="password" type="password" placeholder="Enter your password" required />
             <Button type="submit">
               {
                 pending ? "Submitting..." : "Login"
