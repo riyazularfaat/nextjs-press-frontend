@@ -1,6 +1,6 @@
 import React from 'react'
 
-const HomePage = () => {
+const UserDashboard = () => {
   return (
     <>
       <div>This is home page</div>
@@ -9,4 +9,4 @@ const HomePage = () => {
   )
 }
 
-export default HomePage
+export default UserDashboard
