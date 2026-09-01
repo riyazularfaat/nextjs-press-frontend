@@ -1,12 +1,14 @@
+// import { cookies } from 'next/headers';
 import { JwtPayload } from "jsonwebtoken";
 import { cookies } from "next/headers";
-import type { NextRequest } from "next/server";
-import { NextResponse } from "next/server";
-import { jwtUtils } from "./utils/jwt";
+import type { NextRequest } from 'next/server';
+import { NextResponse } from 'next/server';
+import { getSubscriptionStatus } from "./app/(publicGroup)/_actions/getSubscriptionStatus";
 import { getNewAccessToken } from "./service/refreshToken";
+import { jwtUtils } from "./utils/jwt";
 
 const AUTH_ROUTES = ["/login", "/register"];
-const PUBLIC_ROUTES = ["/", "/news"];
+const PUBLIC_ROUTES = ["/", "/news"]
 
 // This function can be marked `async` if using `await` inside
 export async function proxy(request: NextRequest) {
@@ -27,6 +29,8 @@ export async function proxy(request: NextRequest) {
         process.env.JWT_REFRESH_SECRET as string,
       )
     : null;
+
+
 
   if (!decodedAccessToken?.success && decodedRefreshToken?.success) {
     //access token has expired but refresh token is valid, get new access token from backend
@@ -52,7 +56,6 @@ export async function proxy(request: NextRequest) {
   let userRole = null;
 
   if (!decodedAccessToken?.success) {
-    //token has expired or is invalid, clear the cookies
     cookieStore.delete("accessToken");
   }
 
@@ -87,22 +90,49 @@ export async function proxy(request: NextRequest) {
   }
 
   // Authorization : Role based access control
+  // if(pathname.startsWith("/dashboard") && userRole !== "USER"){
+  //     return NextResponse.redirect(new URL('/not-found', request.url));
+  // }else if(pathname.startsWith("/admin-dashboard") && userRole !== "ADMIN"){
+  //     return NextResponse.redirect(new URL('/not-found', request.url));
+  // }else if(pathname.startsWith("/author-dashboard") && userRole !== "AUTHOR"){
+  //     return NextResponse.redirect(new URL('/not-found', request.url));
+  // }
+
+  // Authorization : Role based access control
   if (pathname.startsWith("/dashboard") && userRole !== "USER") {
-    return NextResponse.redirect(new URL("/not-found", request.url));
+    return NextResponse.rewrite(new URL("/not-found", request.url), {
+      status: 404,
+    });
   } else if (pathname.startsWith("/admin-dashboard") && userRole !== "ADMIN") {
-    return NextResponse.redirect(new URL("/not-found", request.url));
+    return NextResponse.rewrite(new URL("/not-found", request.url), {
+      status: 404,
+    });
   } else if (
     pathname.startsWith("/author-dashboard") &&
     userRole !== "AUTHOR"
   ) {
-    return NextResponse.redirect(new URL("/not-found", request.url));
+    return NextResponse.rewrite(new URL("/not-found", request.url), {
+      status: 404,
+    });
+  }
+
+  if (pathname === "/premium") {
+    const subscriptionStatus = await getSubscriptionStatus();
+
+    const isActive = Boolean(
+      subscriptionStatus?.success && subscriptionStatus.data?.isSubscribed,
+    );
+
+    if (!isActive) {
+      return NextResponse.redirect(new URL("/payment", request.url));
+    }
   }
 
   return NextResponse.next();
 }
 
 export const config = {
-  matcher: [
-    "/((?!api|_next/static|favicon.ico|_next/image|.*\\.png$).*)",
-  ],
-};
+    matcher: [
+        '/((?!api|_next/static|favicon.ico|_next/image|.*\\.png$).*)'
+    ],
+}
