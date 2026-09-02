@@ -6,9 +6,12 @@ import { Input } from "@/components/ui/input"
 import {loginAction} from "../_actions/authActions"
 import { useActionState, useEffect } from "react"
 import { toast } from "sonner"
+import { useSearchParams } from "next/navigation"
 
 const LoginForm = () => {
-  const [state, action, pending] = useActionState(loginAction, false);
+  const searchParams = useSearchParams();
+  const redirectTo = searchParams.get("redirectTo") ?? "";
+  const [state, action, pending] = useActionState(loginAction.bind(null, redirectTo), false);
   useEffect(() => {
     if (!state) return;
     if (state.success) {

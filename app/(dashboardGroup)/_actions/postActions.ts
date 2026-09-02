@@ -1,6 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 "use server";
 
+import { isAccessTokenExist } from "@/service/refreshToken";
 import { revalidateTag } from "next/cache";
 import { cookies } from "next/headers";
 
@@ -11,30 +12,78 @@ type PostState = {
   data: Record<string, any>;
 };
 
-export const createPost = async (prevState: PostState, data: FormData) => {
+/*
+
+    data : {
+        title
+        conten
+    }
+*/
+
+export const createPost = async (prevState: PostState, formData: FormData) => {
+  console.log({
+    title: formData.get("title"),
+    content: formData.get("content"),
+    thumbnail: formData.get("thumbnail"),
+    tags: (formData.get("tags") as string).split(", "),
+    isPremium: formData.get("isPremium") === "on",
+  });
+
   const payload = {
-    title: data.get("title"),
-    content: data.get("content"),
-    thumbnail: data.get("thumbnail"),
-    tags: (data.get("tags") as string)?.split(", "),
-    isPremium: data.get("isPremium") === "on",
+    title: formData.get("title"),
+    content: formData.get("content"),
+    thumbnail: formData.get("thumbnail"),
+    tags: (formData.get("tags") as string).split(", "),
+    isPremium: formData.get("isPremium") === "on",
   };
-  const cookieStore = await cookies();
 
-  const accessToken = cookieStore.get("accessToken")?.value || null;
+  // const cookieStore = await cookies();
 
-  if (!accessToken) {
-    return {
-      success: false,
-      message: "User not logged in!",
-    };
-  }
+  // let accessToken = cookieStore.get("accessToken")?.value || null;
+  // const refreshToken = cookieStore.get("refreshToken")?.value || null;
+
+  // if (!accessToken && !refreshToken) {
+  //     // throw new Error("User Not Logged In!");
+
+  //     return {
+  //         success: false,
+  //         message: "User not logged in!"
+  //     }
+  // }
+
+  // const decodedAccessToken = accessToken ? jwtUtils.verifyToken(accessToken, process.env.JWT_ACCESS_SECRET as string) : null;
+
+  // const decodedRefreshToken = refreshToken ? jwtUtils.verifyToken(refreshToken, process.env.JWT_REFRESH_SECRET as string) : null;
+
+  // if(!decodedAccessToken?.success && decodedRefreshToken?.success){
+  //         //access token has expired but refresh token is valid, get new access token from backend
+  //         const result = await getNewAccessToken();
+
+  //         if(result.success){
+  //             const newAccessToken = result.data.accessToken;
+
+  //             cookieStore.set("accessToken", newAccessToken , {
+  //                 httpOnly : true,
+  //                 maxAge : 60 * 60 * 24,
+  //                 sameSite : "lax",
+  //             });
+
+  //             accessToken = newAccessToken;
+
+  //         }
+  //     }
+
+  const accessToken = await isAccessTokenExist();
 
   const res = await fetch(`${process.env.BACKEND_API_URL}/api/posts`, {
     method: "POST",
     headers: {
+      // Authorization : accessToken as unknown as string,
+      // Authorization : `${accessToken}`,
+      // Authorization : `Bearer ${accessToken}`
+
       Cookie: `accessToken=${accessToken}`,
-      "content-type": "application/json",
+      "Content-Type": "application/json",
     },
     body: JSON.stringify(payload),
   });
@@ -45,7 +94,9 @@ export const createPost = async (prevState: PostState, data: FormData) => {
     revalidateTag("my-posts", {
       expire: 0,
     });
-  } else if (result.success && result.data.isPremium) {
+  }
+
+  if (result.success && result.data.isPremium) {
     revalidateTag("premium-posts", {
       expire: 0,
     });
@@ -57,83 +108,93 @@ export const createPost = async (prevState: PostState, data: FormData) => {
 
   return result;
 };
+export const updatePost = async (
+  postId: string,
+  prevState: PostState,
+  formData: FormData,
+) => {
+  console.log({
+    postId,
+  });
+  console.log({
+    title: formData.get("title"),
+    content: formData.get("content"),
+    thumbnail: formData.get("thumbnail"),
+    tags: (formData.get("tags") as string).split(", "),
+    isPremium: formData.get("isPremium") === "on",
+  });
 
-export const getMyPosts = async ({
-  query,
-}: {
-  query?: { [key: string]: string | string[] | undefined };
-}) => {
-  const params = new URLSearchParams();
+  const payload = {
+    title: formData.get("title") ?? "",
+    content: formData.get("content") ?? "",
+    thumbnail: formData.get("thumbnail") ?? "",
+    tags: (formData.get("tags") as string).split(", ") ?? "",
+    isPremium: formData.get("isPremium") === "on",
+  };
 
-  if (query && query.searchTerm) {
-    params.set("searchTerm", query.searchTerm as string);
-  }
+  // const cookieStore = await cookies();
 
-  const cookieStore = await cookies();
+  // let accessToken = cookieStore.get("accessToken")?.value || null;
+  // const refreshToken = cookieStore.get("refreshToken")?.value || null;
 
-  const accessToken = cookieStore.get("accessToken")?.value || null;
+  // if (!accessToken && !refreshToken) {
+  //     // throw new Error("User Not Logged In!");
 
-  if (!accessToken) {
-    return {
-      success: false,
-      message: "User not logged in!",
-    };
-  }
+  //     return {
+  //         success: false,
+  //         message: "User not logged in!"
+  //     }
+  // }
+
+  // const decodedAccessToken = accessToken ? jwtUtils.verifyToken(accessToken, process.env.JWT_ACCESS_SECRET as string) : null;
+
+  // const decodedRefreshToken = refreshToken ? jwtUtils.verifyToken(refreshToken, process.env.JWT_REFRESH_SECRET as string) : null;
+
+  // if (!decodedAccessToken?.success && decodedRefreshToken?.success) {
+  //     //access token has expired but refresh token is valid, get new access token from backend
+  //     const result = await getNewAccessToken();
+
+  //     if (result.success) {
+  //         const newAccessToken = result.data.accessToken;
+
+  //         cookieStore.set("accessToken", newAccessToken, {
+  //             httpOnly: true,
+  //             maxAge: 60 * 60 * 24,
+  //             sameSite: "lax",
+  //         });
+
+  //         accessToken = newAccessToken;
+
+  //     }
+  // }
+
+  const accessToken = await isAccessTokenExist();
 
   const res = await fetch(
-    `${process.env.BACKEND_API_URL}/api/posts/my-posts?${params.toString()}`,
+    `${process.env.BACKEND_API_URL}/api/posts/${postId}`,
     {
+      method: "PATCH",
       headers: {
+        // Authorization : accessToken as unknown as string,
+        // Authorization : `${accessToken}`,
+        // Authorization : `Bearer ${accessToken}`
+
         Cookie: `accessToken=${accessToken}`,
+        "Content-Type": "application/json",
       },
-      cache: "no-cache",
-      next: {
-        revalidate: 60 * 60 * 6,
-        tags: ["public-posts"],
-      },
+      body: JSON.stringify(payload),
     },
   );
 
   const result = await res.json();
 
-  return result;
-};
-
-export const updatePost = async (postId: string, prevState: PostState, data: FormData) => {
-  const payload = {
-    title: data.get("title") ?? "",
-    content: data.get("content") ?? "",
-    thumbnail: data.get("thumbnail") ?? "",
-    tags: (data.get("tags") as string)?.split(", ") ?? [],
-    isPremium: data.get("isPremium") === "on",
-  };
-  const cookieStore = await cookies();
-
-  const accessToken = cookieStore.get("accessToken")?.value || null;
-
-  if (!accessToken) {
-    return {
-      success: false,
-      message: "User not logged in!",
-    };
-  }
-
-  const res = await fetch(`${process.env.BACKEND_API_URL}/api/posts/${postId}`, {
-    method: "PATCH",
-    headers: {
-      Cookie: `accessToken=${accessToken}`,
-      "content-type": "application/json",
-    },
-    body: JSON.stringify(payload),
-  });
-
-  const result = await res.json();
-
   if (result.success) {
     revalidateTag("my-posts", {
       expire: 0,
     });
-  } else if (result.success && result.data.isPremium) {
+  }
+
+  if (result.success && result.data.isPremium) {
     revalidateTag("premium-posts", {
       expire: 0,
     });
@@ -142,6 +203,41 @@ export const updatePost = async (postId: string, prevState: PostState, data: For
       expire: 0,
     });
   }
+
+  return result;
+};
+
+export const getMyPosts = async () => {
+  const cookieStore = await cookies();
+
+  const accessToken = cookieStore.get("accessToken")?.value || null;
+
+  if (!accessToken) {
+    // throw new Error("User Not Logged In!");
+
+    return {
+      success: false,
+      message: "User not logged in!",
+    };
+  }
+
+  const res = await fetch(`${process.env.BACKEND_API_URL}/api/posts/my-posts`, {
+    headers: {
+      // Authorization : accessToken as unknown as string,
+      // Authorization : `${accessToken}`,
+      // Authorization : `Bearer ${accessToken}`
+
+      Cookie: `accessToken=${accessToken}`,
+    },
+
+    cache: "force-cache",
+    next: {
+      revalidate: 60 * 60 * 24, // 1day
+      tags: ["my-posts"],
+    },
+  });
+
+  const result = res.json();
 
   return result;
 };

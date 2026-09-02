@@ -39,7 +39,7 @@ export type RegisterState = {
   };
 };
 
-export const loginAction = async (
+export const loginAction = async (redirectTo: string,
   prevState: LoginState,
   formData: FormData,
 ) => {
@@ -76,6 +76,10 @@ export const loginAction = async (
       sameSite: "lax",
       path:"/"
     });
+
+    if (redirectTo && typeof redirectTo === "string" && redirectTo.startsWith("/") && !redirectTo.startsWith("//")) {
+      redirect(redirectTo);
+    }
 
     const jwtDecoder = jwt.decode(result.data.accessToken) as JwtPayload;
     if (jwtDecoder.role === "USER")

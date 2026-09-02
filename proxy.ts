@@ -1,20 +1,22 @@
 // import { cookies } from 'next/headers';
 import { JwtPayload } from "jsonwebtoken";
 import { cookies } from "next/headers";
-import type { NextRequest } from 'next/server';
-import { NextResponse } from 'next/server';
+import type { NextRequest } from "next/server";
+import { NextResponse } from "next/server";
 import { getSubscriptionStatus } from "./app/(publicGroup)/_actions/getSubscriptionStatus";
 import { getNewAccessToken } from "./service/refreshToken";
 import { jwtUtils } from "./utils/jwt";
 
 const AUTH_ROUTES = ["/login", "/register"];
-const PUBLIC_ROUTES = ["/", "/news"]
+// const PUBLIC_ROUTES = ["/", "/news", "/login", "/register"]
+const PUBLIC_ROUTES = ["/", "/news"];
 
 // This function can be marked `async` if using `await` inside
 export async function proxy(request: NextRequest) {
   const pathname = request.nextUrl.pathname;
 
   const cookieStore = await cookies();
+  // const accessToken = cookieStore.get("accessToken")?.value;
 
   let accessToken = request.cookies.get("accessToken")?.value;
   const refreshToken = request.cookies.get("refreshToken")?.value;
@@ -29,8 +31,6 @@ export async function proxy(request: NextRequest) {
         process.env.JWT_REFRESH_SECRET as string,
       )
     : null;
-
-
 
   if (!decodedAccessToken?.success && decodedRefreshToken?.success) {
     //access token has expired but refresh token is valid, get new access token from backend
@@ -56,7 +56,9 @@ export async function proxy(request: NextRequest) {
   let userRole = null;
 
   if (!decodedAccessToken?.success) {
+    //token has expired or is invalid, clear the cookies
     cookieStore.delete("accessToken");
+    // return NextResponse.redirect(new URL('/login', request.url));
   }
 
   if (decodedAccessToken?.success && decodedAccessToken.data) {
@@ -86,35 +88,30 @@ export async function proxy(request: NextRequest) {
 
   // Authenticated Pages Protection : Authorization is not handled yet
   if (!accessToken && !isPublicRoute && !isAuthRoute) {
-    return NextResponse.redirect(new URL("/login", request.url));
+    const loginUrl = new URL("/login", request.url);
+
+    loginUrl.searchParams.set("redirectTo", pathname);
+
+    return NextResponse.redirect(loginUrl);
   }
 
   // Authorization : Role based access control
-  // if(pathname.startsWith("/dashboard") && userRole !== "USER"){
-  //     return NextResponse.redirect(new URL('/not-found', request.url));
-  // }else if(pathname.startsWith("/admin-dashboard") && userRole !== "ADMIN"){
-  //     return NextResponse.redirect(new URL('/not-found', request.url));
-  // }else if(pathname.startsWith("/author-dashboard") && userRole !== "AUTHOR"){
-  //     return NextResponse.redirect(new URL('/not-found', request.url));
-  // }
-
-  // Authorization : Role based access control
   if (pathname.startsWith("/dashboard") && userRole !== "USER") {
-    return NextResponse.rewrite(new URL("/not-found", request.url), {
-      status: 404,
-    });
+    return NextResponse.redirect(new URL("/not-found", request.url));
   } else if (pathname.startsWith("/admin-dashboard") && userRole !== "ADMIN") {
-    return NextResponse.rewrite(new URL("/not-found", request.url), {
-      status: 404,
-    });
+    return NextResponse.redirect(new URL("/not-found", request.url));
   } else if (
     pathname.startsWith("/author-dashboard") &&
     userRole !== "AUTHOR"
   ) {
-    return NextResponse.rewrite(new URL("/not-found", request.url), {
-      status: 404,
-    });
+    return NextResponse.redirect(new URL("/not-found", request.url));
   }
+
+  // const subscriptionStatus = await getSubscriptionStatus();
+
+  // const isActive = Boolean(
+  //     subscriptionStatus?.success && subscriptionStatus.data?.isSubscribed,
+  // );
 
   if (pathname === "/premium") {
     const subscriptionStatus = await getSubscriptionStatus();
@@ -128,11 +125,26 @@ export async function proxy(request: NextRequest) {
     }
   }
 
+  // if(pathname === "/payment"){
+  //     // const subscriptionStatus = await getSubscriptionStatus();
+
+  //     // const isActive = Boolean(
+  //     //     subscriptionStatus?.success && subscriptionStatus.data?.isSubscribed,
+  //     // );
+
+  //     if (isActive) {
+  //         return NextResponse.redirect(new URL("/premium", request.url))
+  //     }
+  // }
+
+  // return NextResponse.redirect(new URL('/', request.url))
   return NextResponse.next();
 }
 
 export const config = {
-    matcher: [
-        '/((?!api|_next/static|favicon.ico|_next/image|.*\\.png$).*)'
-    ],
-}
+  matcher: [
+    // '/dashboard/:path*',
+    // '/admin-dashboard/:path*',
+    "/((?!api|_next/static|favicon.ico|_next/image|.*\\.png$).*)",
+  ],
+};
